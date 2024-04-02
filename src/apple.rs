@@ -38,9 +38,27 @@ impl Error for WindowTitleError {}
 fn split(mut string: &str) -> Vec<String> {
 	let mut titles = Vec::new();
 	while let Some(start) = string.find('"') {
-		let end = string[start + 1..].find('"').unwrap();
-		titles.push(string[start + 1..][..end].to_string());
-		string = &string[start + 1..][end + 1..];
+		let mut end = start + 1;
+		let mut found_end_quote = false;
+		while end < string.len() {
+			// Look for the next quote that is not escaped
+			if string[end..].starts_with('"') && !string[end - 1..end].starts_with('\\') {
+				found_end_quote = true;
+				break;
+			}
+			end += 1;
+		}
+		if found_end_quote {
+			// Adjust for quotes and include escaped quotes
+			let mut title = string[start + 1..end].to_string();
+			// Replace escaped quotes with just quotes
+			title = title.replace("\\\"", "\"");
+			titles.push(title);
+			string = &string[end + 1..];
+		} else {
+			// If no end quote found, just move past the start quote
+			string = &string[start + 1..];
+		}
 	}
 	titles
 }
@@ -53,5 +71,11 @@ mod tests {
 	fn test_split() {
 		let string = r#"{{}, {"0"}, {"1", "2"}}"#;
 		assert_eq!(split(string), &["0", "1", "2"]);
+	}
+
+	#[test]
+	fn test_split_handles_no_end_quote() {
+		let input = r#"{"\" - Brave", "1", "2"}"#;
+		assert_eq!(split(input), vec![r#"" - Brave"#, "1", "2"]);
 	}
 }
