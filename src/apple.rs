@@ -35,33 +35,37 @@ impl fmt::Display for WindowTitleError {
 }
 impl Error for WindowTitleError {}
 
-fn split(mut string: &str) -> Vec<String> {
+fn split(string: &str) -> Vec<String> {
 	let mut titles = Vec::new();
-	while let Some(start) = string.find('"') {
-		let mut end = start + 1;
-		let mut found_end_quote = false;
-		while end < string.len() {
-			// Look for the next quote that is not escaped
-			if string[end..].starts_with('"') && !string[end - 1..end].starts_with('\\') {
-				found_end_quote = true;
-				break;
+	let mut chars_iter = string.char_indices().peekable();
+	while let Some((start, _)) = chars_iter.peek().cloned() {
+		if string[start..].starts_with('"') {
+			let mut title_chars = Vec::new();
+			let mut found_end_quote = false;
+			// Skip the initial quote
+			chars_iter.next();
+			while let Some((_, c)) = chars_iter.next() {
+				// Check for an unescaped quote
+				if c == '"' && title_chars.last() != Some(&'\\') {
+					found_end_quote = true;
+					break;
+				}
+				title_chars.push(c);
 			}
-			end += 1;
-		}
-		if found_end_quote {
-			// Adjust for quotes and include escaped quotes
-			let mut title = string[start + 1..end].to_string();
-			// Replace escaped quotes with just quotes
-			title = title.replace("\\\"", "\"");
-			titles.push(title);
-			string = &string[end + 1..];
+			if found_end_quote {
+				// Convert characters to String, handling escaped characters
+				let title: String = title_chars.into_iter().collect::<String>().replace("\\\"", "\"");
+				titles.push(title);
+			}
 		} else {
-			// If no end quote found, just move past the start quote
-			string = &string[start + 1..];
+			// Move to the next character if the current one isn't a quote
+			chars_iter.next();
 		}
 	}
 	titles
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -77,5 +81,11 @@ mod tests {
 	fn test_split_handles_no_end_quote() {
 		let input = r#"{"\" - Brave", "1", "2"}"#;
 		assert_eq!(split(input), vec![r#"" - Brave"#, "1", "2"]);
+	}
+
+	#[test]
+	fn emoji_test(){
+		let input = r#"{"👋"}, {"😾"}, {"🤮", "🎃"}"#;
+		assert_eq!(split(input), vec![r#"👋"#, r#"😾"#, r#"🤮"#, r#"🎃"#]);
 	}
 }
