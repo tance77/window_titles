@@ -12,7 +12,7 @@ pub struct Connection;
 impl ConnectionTrait for Connection {
     fn new() -> Result<Self> { Ok(Self) }
     fn window_titles(&self) -> Result<Vec<String>> {
-        let state: Box<Vec<String>> = Box::new(Vec::new());
+        let state: Box<Vec<String>> = Box::new(Vec::with_capacity(1000));
         let ptr = Box::into_raw(state);
         let state;
         unsafe {
