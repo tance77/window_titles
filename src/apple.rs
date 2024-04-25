@@ -11,8 +11,12 @@ impl ConnectionTrait for Connection {
 	fn new() -> Result<Self> { Ok(Self) }
 	fn window_titles(&self) -> Result<Vec<String>> {
 		let arguments = &["-ss", "-e", &format!("{} {}", PREFIX, SUFFIX)];
-		let command = Command::new("osascript").args(arguments).output()
-			.expect("failed to execute AppleScript command");
+		let command = Command::new("osascript").args(arguments).output();
+
+		let command = match command {
+			Ok(command_output) => command_output,
+			Err(_) => return Err(WindowTitleError::ExecuteFailed.into()),
+		};
 
 		let error = String::from_utf8_lossy(&command.stderr);
 		match error.contains(PERMISSION_ERROR) {
@@ -25,11 +29,13 @@ impl ConnectionTrait for Connection {
 #[derive(Clone, Copy, Debug)]
 pub enum WindowTitleError {
 	NoAccessibilityPermission,
+	ExecuteFailed
 }
 impl fmt::Display for WindowTitleError {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result<> {
 		match self {
-			WindowTitleError::NoAccessibilityPermission => write!(fmt, "Permission to use the accessibility API has not been granted")
+			WindowTitleError::NoAccessibilityPermission => write!(fmt, "Permission to use the accessibility API has not been granted"),
+			WindowTitleError::ExecuteFailed => write!(fmt, "Failed to execute the command")
 		}
 	}
 }
